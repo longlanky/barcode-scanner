@@ -48,13 +48,31 @@ async function runImage(file) {
         console.log(`RULE BUG: ${s.value} (${file}) classifies as '${kinds[0]}', expected 'serial'`);
       }
     }
+    // Non-serial codes must never be promoted to a serial: a false positive is
+    // worse than a miss (it shows up as a verified serial in the UI).
+    for (const c of exp.otherCodes || []) {
+      const kinds = ['Code39', 'Code128', 'DataMatrix'].map(f => classify(c, f).kind);
+      if (kinds.includes('serial')) {
+        rulesOk = false;
+        console.log(`FALSE POSITIVE: ${c} (${file}) classifies as 'serial', expected non-serial`);
+      }
+    }
   }
   if (!rulesOk) process.exit(2);
 
-  const files = process.argv.slice(2).filter(a => !a.startsWith('--'));
-  const toRun = files.length ? files : Object.keys(manifest.images);
-
+  const requested = process.argv.slice(2).filter(a => !a.startsWith('--'));
   let allOk = true;
+  // Accept both manifest basenames and real paths (e.g. example_barcodes/x.jpg).
+  const toRun = requested.length
+    ? requested.map(arg => {
+        if (manifest.images[arg]) return arg;
+        const base = path.basename(arg);
+        if (manifest.images[base]) return base;
+        console.log(`?? ${arg}: not in manifest`);
+        allOk = false;
+        return null;
+      }).filter(Boolean)
+    : Object.keys(manifest.images);
   for (const file of toRun) {
     const expected = manifest.images[file];
     if (!expected) { console.log(`?? ${file}: not in manifest`); continue; }

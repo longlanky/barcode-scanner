@@ -6,7 +6,7 @@ Guidance for AI coding agents working in this repository.
 
 `barcode-scanner` (v2.0.0) is a small Node.js web app for extracting **serial numbers from photos of HDD/SSD labels**. A user uploads one or more photos in the browser; the server runs a multi-engine, multi-scale barcode battery, groups hits into per-drive cards, classifies which code is the serial, shows a thumbnail of each code's source region, and offers an OCR assist fallback for labels whose barcodes are below the decodability floor. A drive with no detected serial is **not an error state** — all decoded fields are simply shown as they are (some labels carry the SN only as printed text; OCR assist covers those). The batch summary clusters confirmed serials by detected model/MPN.
 
-There is no database, no authentication, and no build step. CPU-only by design (all decoders are classical CV; a GPU accelerates nothing here).
+There is no database and no build step. The server is CPU-only by design (all decoders are classical CV; a GPU accelerates nothing here) and is **fronted by HTTP Basic auth** (`APP_USER`/`APP_PASS`), per-IP rate limiting, a scan concurrency semaphore, request timeouts, and a decoded-pixel cap. It is intended to run behind TLS (Cloudflared).
 
 ## Tech stack
 
@@ -17,7 +17,8 @@ There is no database, no authentication, and no build step. CPU-only by design (
   - `zxing-wasm` (ZXing-C++ as WASM) — primary: Code 39/93/128, QR, **Data Matrix**, PDF417, EAN/UPC; run with `tryHarder/tryRotate/tryInvert/tryDownscale`.
   - `@undecaf/zbar-wasm` — secondary: **whole-image passes only**; empirically ZBar finds codes on full frames that it misses on crops.
 - **OCR:** `tesseract.js` (WASM, no native deps) — `lib/ocr.js`, rotation(0/90/270/180) × polarity voting, sparse-text PSM 11, ~2200px working size, early exit on corroborated candidates. OCR proposals are unverified by design (misreads 8/R, 0/O on these labels) and require one-click user confirmation in the UI.
-- **Frontend:** single static file `public/index.html`, inline CSS + vanilla JS.
+- **Frontend:** `public/index.html` + `public/app.js` (external script so the CSP can disallow inline script), inline CSS + vanilla JS. All dynamic text is rendered with `textContent` — barcode payloads are untrusted strings.
+- **Hardening:** `helmet` (CSP et al.), `express-rate-limit` keyed on `CF-Connecting-IP`.
 
 ## Repository layout
 
@@ -28,6 +29,8 @@ lib/classify.js      — serial/wwn/psid/part rules + per-drive spatial grouping
 lib/ocr.js           — Tesseract worker singleton + voting OCR assist
 public/index.html    — UI: batch upload, overview boxes, per-drive cards, OCR
                        proposals, aggregated serial list, CSV export
+public/app.js        — UI logic (external script; CSP disallows inline)
+test/                — node:test unit tests + server security smoke tests
 tools/expected.json  — hand-verified manifest of every serial/code in example photos
 tools/validate.js    — validation harness (see Testing)
 example_barcodes/    — real reference photos (12MP + 50MP HDD/SSD labels);
@@ -39,8 +42,9 @@ package.json         — start script + dependencies
 ## Build and run commands
 
 - Install: `npm install`
-- Run: `npm start` → http://localhost:3010 (env `PORT` overrides)
-- No build step, no linter. Tests = `tools/validate.js` (below).
+- Run: `npm start` → http://localhost:3010 (binds `127.0.0.1` by default)
+- No build step, no linter. Unit/security tests: `npm test`. Pipeline harness: `tools/validate.js` (below).
+- Env: `PORT`, `HOST`, `APP_USER`/`APP_PASS` (HTTP Basic; a random password is generated and printed if `APP_PASS` is unset), `RATE_LIMIT`, `MAX_CONCURRENT`, `MAX_PIXELS`, `REQUEST_TIMEOUT_MS`, `ALLOW_DEEP=0` (refuse the client-triggered deep tile scan; allowed by default for authenticated clients).
 
 ## Decode pipeline (lib/pipeline.js, `decodeAll`)
 
@@ -64,7 +68,9 @@ A 15-char Code 128 SN barcode needs ≥ ~1000 px width (≈5 px/module) to decod
 
 ## Testing
 
-No automated framework. `node tools/validate.js [--ocr] [--deep] [images...]` runs the pipeline over `example_barcodes/` and diffs against the hand-verified `tools/expected.json` manifest:
+`npm test` runs `node --test` over `test/`: unit tests for `classify`/`parsePayload`/`groupIntoCards`/`canonicalFormat` (including **negative** cases — model codes must never classify as serials) plus server security smoke tests (401 without creds, 429 after the quota, 413 on over-large images, JSON error bodies). 
+
+`node tools/validate.js [--ocr] [--deep] [images...]` runs the pipeline over `example_barcodes/` and diffs against the hand-verified `tools/expected.json` manifest:
 
 - Barcode path must find every serial on in-spec photos (Seagate/WD examples: 100%).
 - Sub-floor serials (dense Samsung labels at 12MP) are expected via OCR proposal or a no-serial flag; `--ocr` checks the OCR path per missing serial.
@@ -74,10 +80,13 @@ Manual smoke test: `npm start`, upload a photo, check boxed overview + per-drive
 
 ## Security considerations
 
-- Uploads in memory only, 25 MB cap; never written to disk or logged. The decode battery runs sharp many times per request — do not raise the cap without considering memory/CPU exhaustion.
-- OCR (`tesseract.js`) keeps one warm worker; it is CPU-bound — the frontend serializes batch uploads one photo at a time for this reason.
-- No auth/rate limiting: local/trusted use only; do not expose publicly without adding them.
-- sharp/ZBar/ZXing error messages are returned to the client; acceptable for a local tool.
+- HTTP Basic auth is always on; if `APP_PASS` is unset a random password is generated and printed at boot. The service is never left open.
+- Uploads in memory only, 25 MB cap; never written to disk or logged. `MAX_PIXELS` rejects over-large decodes before the battery; `MAX_CONCURRENT` bounds simultaneous scans (extras get 503) and `REQUEST_TIMEOUT_MS` caps each request. Do not raise these without considering memory/CPU exhaustion.
+- Client `deep=1` is honored for authenticated users (the 3×3 native-tile path is the most expensive pass); set `ALLOW_DEEP=0` to refuse it.
+- OCR (`tesseract.js`) keeps one warm worker; it is CPU-bound — the frontend serializes batch uploads one photo at a time. A failed worker is discarded and rebuilt on the next request (first run downloads `eng.traineddata` unless it is in the working dir).
+- Frontend renders all decoded values with `textContent`; do not reintroduce `innerHTML` for untrusted barcode/OCR text (CSP additionally disallows inline script, so keep JS in `public/app.js`).
+- **Known deferred dependency risk:** `sharp` is pinned at `^0.33.2` and `npm audit` reports inherited libvips/libheif CVEs. Compensating controls are the auth/pixel-cap/concurrency limits above; schedule an upgrade to the patched 0.35.x line and re-run `tools/validate.js` before raising trust in the decoder.
+- sharp/ZBar/ZXing error messages are returned to the client; acceptable for an authenticated internal tool.
 
 ## Deployment
 
