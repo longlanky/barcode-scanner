@@ -1,0 +1,387 @@
+{
+  "comment": "Hand-transcribed from example_barcodes photos (visual read of each label). serials: every drive's S/N. otherCodes: WWN/PSID/model codes that should also be detected. decodable=false means the barcode is below the resolution/blur floor in this photo (verified by experiment) — extraction is expected via OCR proposal or an explicit no-serial flag, NOT silently missed.",
+  "images": {
+    "20260721_102940.jpg": {
+      "drives": 8,
+      "serials": [
+        {
+          "value": "S1DHNSBF634037T",
+          "label": "840 EVO (top-left)",
+          "labelRect": [
+            270,
+            170,
+            1980,
+            1260
+          ],
+          "belowFloor": true
+        },
+        {
+          "value": "S1DHNSAF610222X",
+          "label": "840 EVO (top-mid)",
+          "labelRect": [
+            3200,
+            170,
+            1970,
+            1290
+          ]
+        },
+        {
+          "value": "S36SNWAH905482A",
+          "label": "750 EVO (mid-left)",
+          "labelRect": [
+            200,
+            2040,
+            2050,
+            1360
+          ],
+          "belowFloor": true
+        },
+        {
+          "value": "S3PTNF1JB01696E",
+          "label": "850 EVO (mid-mid)",
+          "labelRect": [
+            3200,
+            2180,
+            1930,
+            1250
+          ],
+          "belowFloor": true
+        },
+        {
+          "value": "S3PTNF0J939144F",
+          "label": "850 EVO (mid-right)",
+          "labelRect": [
+            5980,
+            2075,
+            1940,
+            1255
+          ],
+          "belowFloor": true
+        },
+        {
+          "value": "S1DHNSAF223094V",
+          "label": "840 EVO (bottom-left)",
+          "labelRect": [
+            35,
+            4250,
+            2005,
+            1390
+          ],
+          "belowFloor": true
+        },
+        {
+          "value": "S4CMNG0KC31924N",
+          "label": "860 EVO (bottom-mid)",
+          "labelRect": [
+            3060,
+            4180,
+            2005,
+            1260
+          ],
+          "belowFloor": true
+        },
+        {
+          "value": "S2RANX0J203655Z",
+          "label": "850 EVO (bottom-right)",
+          "labelRect": [
+            5915,
+            4080,
+            1975,
+            1225
+          ],
+          "belowFloor": true
+        }
+      ],
+      "otherCodes": [
+        "50025388A05416C6",
+        "50025388A04EE51C",
+        "5002538D703996A2",
+        "5002538D427755DF",
+        "5002538D424875EF",
+        "50025388A0278B66",
+        "5002538E7019876E",
+        "5002538D41B86FCC",
+        "1EW3VTU47NCKKAFOFPE6BS1H8NHWT34C",
+        "8Z39JFUPJ9GNBV1LEV2379OXQAMBX7QF",
+        "15JMLT2TJLA46D4ZHSAB24U9WJ02ANXB",
+        "177U43LAARS8C8T3L609M9UE90VH4PHD",
+        "EAHYQDQBEPHHNT46WGCW96KEQCPGD60T",
+        "8QZ4YN5BUBNB3QRB45WRGN48YW1T2PXR",
+        "16QMC5RN02SPXMAK1NUCNJVSPD4L0E6B",
+        "CBB29FRXEQXM6ZALC9YS01RWN0J5MRSS"
+      ]
+    },
+    "20260812_072308.jpg": {
+      "drives": 3,
+      "serials": [
+        {
+          "value": "S8PSNS0T518701R",
+          "label": "870 EVO 1TB (top)",
+          "labelRect": [
+            510,
+            225,
+            1040,
+            1425
+          ],
+          "belowFloor": true
+        },
+        {
+          "value": "S6PSNS0T518711A",
+          "label": "870 EVO 1TB (bottom-left)",
+          "labelRect": [
+            560,
+            1990,
+            1040,
+            1700
+          ],
+          "belowFloor": true
+        },
+        {
+          "value": "S8HUNS0L403413X",
+          "label": "870 EVO 1TB (right)",
+          "labelRect": [
+            1940,
+            1360,
+            1020,
+            1440
+          ]
+        }
+      ],
+      "otherCodes": [
+        "5002538F3250B8B7",
+        "5002538F3250B8C1",
+        "5002538636409FCB",
+        "4H6DEYEBBQMXQTVX2JHZAL2JK69S1XGL",
+        "R35H3XD6TFSKHVR3CF7PU447PV8PM3LP",
+        "WR2XKXZ84TPYT42U557H2KS7K7BWNKTD"
+      ]
+    },
+    "20260816_070652.jpg": {
+      "drives": 1,
+      "serials": [
+        {
+          "value": "WCC6MAZKR83L",
+          "label": "WD Gold 1TB",
+          "labelRect": [
+            875,
+            675,
+            1325,
+            2350
+          ]
+        }
+      ],
+      "otherCodes": [
+        "WD1005FBYZ-01YCBB3",
+        "50014EE2C14E259A"
+      ]
+    },
+    "20260817_072300.jpg": {
+      "drives": 2,
+      "serials": [
+        {
+          "value": "ZRT2M3DG",
+          "label": "IronWolf 12TB (top)",
+          "labelRect": [
+            375,
+            40,
+            1800,
+            1860
+          ]
+        },
+        {
+          "value": "ZRT2LYVW",
+          "label": "IronWolf 12TB (bottom)",
+          "labelRect": [
+            325,
+            1975,
+            1835,
+            1835
+          ]
+        }
+      ],
+      "otherCodes": [
+        "ST12000VN0008",
+        "2YS101-500",
+        "SC60",
+        "5000C500EBB8A88A",
+        "5000C500EB8643A9",
+        "JLRUA1DNNPUNB209TAK15CWVJZR98DCW",
+        "U2T1JMQK2UHT9YE2UL7JU3L0WFXRESST",
+        "https://verify.seagate.com/verify?bpid=200658554614",
+        "https://verify.seagate.com/verify?bpid=200170941412"
+      ]
+    },
+    "20260818_065305.jpg": {
+      "drives": 2,
+      "serials": [
+        {
+          "value": "S6PKNS0YA06718D",
+          "label": "870 EVO 4TB (left)",
+          "labelRect": [
+            85,
+            865,
+            1600,
+            1150
+          ],
+          "belowFloor": true
+        },
+        {
+          "value": "S8HTNS0YC02487D",
+          "label": "870 EVO 4TB (right)",
+          "labelRect": [
+            2315,
+            750,
+            1600,
+            1100
+          ],
+          "belowFloor": true
+        }
+      ],
+      "otherCodes": [
+        "5002538F35A0EE10",
+        "5002538635C07326",
+        "NT4ZN9CXM9D4A6XB9JZAE8UHZE49XWRX",
+        "H56B4JEDN4G3XHNTZM3DRJDBGA3EU2MY"
+      ]
+    },
+    "example_cluster_1/20260819_111532.jpg": {
+      "drives": 1,
+      "serials": [
+        {
+          "value": "1714169B70C6",
+          "label": "Crucial MX300 1050GB"
+        }
+      ],
+      "otherCodes": [
+        "CT1050MX300SSD1",
+        "58E592D2466E5432E100000089C981F0",
+        "T0904K2VD"
+      ]
+    },
+    "example_cluster_1/20260819_111538.jpg": {
+      "drives": 1,
+      "serials": [
+        {
+          "value": "1735E101E68F",
+          "label": "Crucial BX300 240GB"
+        }
+      ],
+      "otherCodes": [
+        "CT240BX300SSD1"
+      ]
+    },
+    "example_cluster_1/20260819_111545.jpg": {
+      "drives": 1,
+      "serials": [
+        {
+          "value": "50026B7779026C1C",
+          "label": "Kingston A400 120GB"
+        }
+      ],
+      "otherCodes": []
+    },
+    "example_cluster_1/20260819_111552.jpg": {
+      "drives": 1,
+      "serials": [
+        {
+          "value": "50026B766A0427EA",
+          "label": "Kingston SUV400S 240GB"
+        }
+      ],
+      "otherCodes": []
+    },
+    "example_cluster_1/20260819_111559.jpg": {
+      "drives": 1,
+      "serials": [
+        {
+          "value": "S1D9NSAF914527B",
+          "label": "Samsung 840 EVO 1TB"
+        }
+      ],
+      "otherCodes": [
+        "50025388A06D80FD"
+      ]
+    },
+    "example_cluster_1/20260819_111641.jpg": {
+      "drives": 1,
+      "serials": [
+        {
+          "value": "WCC6Y4KC9D7X",
+          "label": "WD Blue 1TB"
+        }
+      ],
+      "otherCodes": [
+        "WD10EZEX-75WN4A0",
+        "WCC6Y4KC9D7XT",
+        "TH08JYXKWDT00767CL46A00"
+      ]
+    },
+    "example_cluster_1/20260819_111648.jpg": {
+      "drives": 1,
+      "serials": [
+        {
+          "value": "W4Z4E0DA",
+          "label": "Seagate BarraCuda 2TB"
+        }
+      ],
+      "otherCodes": [
+        "ST2000DM006",
+        "2DM164-302",
+        "CC26",
+        "MJD1G28DCG77GAH6YBNPETK77F04H8AQ",
+        "https://verify.seagate.com/verify?bpid=234663776136",
+        "100803565C"
+      ]
+    },
+    "example_cluster_1/20260819_111654.jpg": {
+      "drives": 1,
+      "serials": [
+        {
+          "value": "S1DE0TYN",
+          "label": "Seagate BarraCuda 1TB"
+        }
+      ],
+      "otherCodes": [
+        "ST1000DM003",
+        "1CH162-510",
+        "CC47",
+        "5000C500622D6F2B",
+        "CN0G1XNT726223870N67A02"
+      ]
+    },
+    "example_cluster_1/20260819_111901.jpg": {
+      "drives": 1,
+      "serials": [
+        {
+          "value": "BN1VXM6E",
+          "label": "HGST 7K1000 1TB"
+        }
+      ],
+      "otherCodes": [
+        "0J22423DA72460C74"
+      ]
+    },
+    "example_cluster_1/20260819_111906.jpg": {
+      "drives": 1,
+      "serials": [
+        {
+          "value": "PNY43172231060106843",
+          "label": "PNY CS900 240GB"
+        }
+      ],
+      "otherCodes": [
+        "PNY CS900 240GB SSD"
+      ]
+    },
+    "example_cluster_1/20260819_111915.jpg": {
+      "drives": 1,
+      "serials": [
+        {
+          "value": "ME1605021001CF039",
+          "label": "Mushkin ECO3 480GB"
+        }
+      ],
+      "otherCodes": []
+    }
+  }
+}

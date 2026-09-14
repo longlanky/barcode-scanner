@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drive Serial Scanner</title>
+<style>
+  :root { --ok:#1a7f37; --warn:#9a6700; --bad:#cf222e; --muted:#57606a; --line:#d0d7de; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; background:#f6f8fa; color:#1f2328; }
+  header { background:#0b3d66; color:#fff; padding:12px 20px; }
+  header h1 { margin:0; font-size:18px; }
+  header p { margin:4px 0 0; font-size:12px; opacity:.85; }
+  #guide { margin-top:6px; font-size:12px; }
+  #guide summary { cursor:pointer; opacity:.9; }
+  #guide ul { margin:6px 0 2px; padding-left:18px; }
+  #guide li { margin:2px 0; }
+  main { padding:16px 20px; max-width:1200px; margin:0 auto; }
+  #drop { border:2px dashed var(--line); border-radius:8px; background:#fff; padding:28px; text-align:center; cursor:pointer; }
+  #drop:hover { border-color:#0b3d66; }
+  #summary { margin:16px 0; background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 16px; }
+  #summary h2 { margin:0 0 8px; font-size:15px; }
+  #serialsOut { width:100%; min-height:90px; font-family:ui-monospace,monospace; font-size:13px; margin-top:8px; }
+  .groupHead { font-weight:700; font-size:13px; margin:10px 0 2px; padding-bottom:2px; border-bottom:1px solid var(--line); }
+  .groupRow { display:flex; align-items:center; gap:10px; padding:2px 0; }
+  .groupRow .txt { font-family:ui-monospace,monospace; font-size:14px; font-weight:600; }
+  .groupRow .meta { font-size:11px; color:var(--muted); flex:1; }
+  .photo { background:#fff; border:1px solid var(--line); border-radius:8px; margin:16px 0; padding:16px; }
+  .photo h3 { margin:0 0 4px; font-size:15px; }
+  .meta { color:var(--muted); font-size:12px; margin-bottom:10px; }
+  .overviewWrap { position:relative; display:inline-block; max-width:100%; }
+  .overviewWrap img { display:block; max-width:100%; border:1px solid var(--line); }
+  .overviewWrap canvas { position:absolute; inset:0; cursor:crosshair; }
+  .cards { display:flex; flex-wrap:wrap; gap:12px; margin-top:12px; }
+  .card { border:1px solid var(--line); border-radius:8px; padding:10px 12px; width:340px; }
+  .card.ok { border-left:4px solid var(--ok); }
+  .card.no-serial { border-left:4px solid var(--line); }
+  .card h4 { margin:0 0 6px; font-size:13px; color:var(--muted); }
+  .serial { font-family:ui-monospace,monospace; font-size:18px; font-weight:700; word-break:break-all; }
+  .badge { display:inline-block; font-size:11px; border-radius:10px; padding:1px 8px; margin-left:6px; vertical-align:middle; }
+  .badge.barcode { background:#ddf4e4; color:var(--ok); }
+  .badge.ocr { background:#fff8c5; color:var(--warn); }
+  .badge.kind { background:#eaeef2; color:var(--muted); }
+  .codes { margin-top:8px; display:flex; flex-direction:column; gap:6px; }
+  .code { display:flex; gap:8px; align-items:center; font-size:12px; }
+  .code img { width:96px; max-height:48px; object-fit:contain; border:1px solid var(--line); }
+  .code .txt { font-family:ui-monospace,monospace; word-break:break-all; flex:1; }
+  button { font-size:12px; padding:3px 10px; border:1px solid var(--line); border-radius:6px; background:#f6f8fa; cursor:pointer; }
+  button:hover { background:#eaeef2; }
+  button.primary { background:#0b3d66; color:#fff; border-color:#0b3d66; }
+  .hint { background:#fff8c5; border:1px solid #eac54f; border-radius:6px; padding:8px 10px; font-size:12px; margin-top:8px; }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid #0b3d66; border-top-color:transparent; border-radius:50%; animation:sp .8s linear infinite; vertical-align:middle; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  .proposal { display:flex; align-items:center; gap:6px; font-family:ui-monospace,monospace; font-size:13px; margin-top:4px; }
+  .selRect { position:absolute; border:2px dashed #cf222e; background:rgba(207,34,46,.1); display:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Drive Serial Scanner</h1>
+  <p>Upload photos of HDD/SSD labels. Serials are extracted automatically; drives that can't be decoded are flagged for a closer retake.</p>
+  <details id="guide">
+    <summary>How to photograph drives for reliable results</summary>
+    <ul>
+      <li><strong>Resolution rule:</strong> the serial barcode must span ≥ ~1000 px. A 2.5" SSD label fills that when the drive is ≥ ~3000 px wide in the photo.</li>
+      <li><strong>12 MP photo (≈4000×3000):</strong> 1 drive per photo, drive fills the frame width.</li>
+      <li><strong>50 MP photo (≈8160×6120):</strong> up to 4 drives (2×2), each filling a quarter of the frame.</li>
+      <li>Hold the camera parallel to the label, avoid glare/reflections, tap to focus on the label.</li>
+      <li>More drives per photo = smaller barcodes = slower scans and unreadable serials. When in doubt, shoot closer.</li>
+    </ul>
+  </details>
+</header>
+<main>
+  <div id="drop">
+    <strong>Choose photos</strong> or drop them here — multiple drives per photo are fine.
+    <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+  </div>
+
+  <div id="summary" style="display:none">
+    <h2>Extracted serial numbers
+      <span style="float:right">
+        <button id="copyAll">Copy all</button>
+        <button id="csvBtn">Download CSV</button>
+      </span>
+    </h2>
+    <div id="groups"></div>
+    <textarea id="serialsOut" readonly></textarea>
+  </div>
+
+  <div id="photos"></div>
+</main>
+
+<script>
+'use strict';
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('fileInput');
+const photosEl = document.getElementById('photos');
+const summaryEl = document.getElementById('summary');
+const serialsOut = document.getElementById('serialsOut');
+const copyAllBtn = document.getElementById('copyAll');
+const groupsEl = document.getElementById('groups');
+
+// Per-photo state: { file, imgUrl, analysis, cards: Map(cardId -> {serial, source}) }
+const photos = [];
+
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', e => e.preventDefault());
+drop.addEventListener('drop', e => { e.preventDefault(); handleFiles(e.dataTransfer.files); });
+fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+const csvBtn = document.getElementById('csvBtn');
+
+copyAllBtn.addEventListener('click', () => {
+  serialsOut.select();
+  navigator.clipboard.writeText(serialsOut.value).catch(() => document.execCommand('copy'));
+});
+
+csvBtn.addEventListener('click', () => {
+  const rows = [['model', 'serial', 'photo', 'card', 'source']];
+  for (const g of serialGroups()) {
+    for (const e of g.entries) rows.push([g.model, e.value, e.photo, e.card, e.source]);
+  }
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'serials.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+function cardLabel(analysis, cardId) {
+  const idx = analysis.cards.findIndex(c => c.id === cardId);
+  return idx >= 0 ? `Drive ${idx + 1}` : String(cardId);
+}
+
+function cardModel(analysis, cardId) {
+  const card = analysis.cards.find(c => c.id === cardId);
+  return card && card.model ? card.model : null;
+}
+
+// All confirmed serials across the batch, clustered by detected model/MPN.
+function serialGroups() {
+  const groups = new Map(); // model -> entries[]
+  for (const p of photos) {
+    if (!p.analysis) continue;
+    for (const [cardId, s] of p.cardSerials) {
+      const model = cardModel(p.analysis, cardId) || 'Model not detected';
+      if (!groups.has(model)) groups.set(model, []);
+      groups.get(model).push({
+        value: s.value,
+        source: s.source,
+        photo: p.file.name,
+        card: cardLabel(p.analysis, cardId),
+      });
+    }
+  }
+  // named models first (alphabetical), "Model not detected" last
+  return [...groups.entries()]
+    .sort((a, b) => (a[0] === 'Model not detected') - (b[0] === 'Model not detected') || a[0].localeCompare(b[0]))
+    .map(([model, entries]) => ({ model, entries }));
+}
+
+// Sequential queue: scans are CPU-heavy on the server, so batch uploads are
+// processed one photo at a time to keep latency predictable.
+let queue = Promise.resolve();
+function handleFiles(list) {
+  for (const file of list) {
+    const state = { file, imgUrl: URL.createObjectURL(file), cardSerials: new Map() };
+    photos.push(state);
+    const section = renderPhotoShell(state);
+    photosEl.appendChild(section);
+    queue = queue.then(() => scanOne(state, section, false));
+  }
+}
+
+async function scanOne(state, section, deep) {
+  try {
+    const fd = new FormData();
+    fd.append('image', state.file);
+    if (deep) fd.append('deep', '1');
+    const res = await fetch('/scan', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    state.analysis = data;
+    renderAnalysis(state, section);
+  } catch (err) {
+    section.querySelector('.meta').textContent = 'Error: ' + err.message;
+  }
+}
+
+function renderPhotoShell(state) {
+  const section = document.createElement('section');
+  section.className = 'photo';
+  section.innerHTML = `
+    <h3>${state.file.name}</h3>
+    <div class="meta"><span class="spin"></span> queued / decoding… ~5–25s per photo (50MP longer); batch uploads run one at a time</div>
+    <div class="overviewWrap" style="display:none">
+      <img alt="">
+      <canvas></canvas>
+      <div class="selRect"></div>
+    </div>
+    <div class="cards"></div>`;
+  section.querySelector('img').src = state.imgUrl;
+  enableRegionSelect(state, section);
+  return section;
+}
+
+function renderAnalysis(state, section) {
+  const a = state.analysis;
+  section.querySelector('.meta').textContent =
+    `${a.width}×${a.height} — ${a.results.length} codes, ${a.cards.length} drive(s), ${(a.elapsedMs/1000).toFixed(1)}s. ` +
+    `Drag a rectangle on the photo to re-scan a region.`;
+
+  const wrap = section.querySelector('.overviewWrap');
+  wrap.style.display = 'inline-block';
+  drawBoxes(state, section);
+
+  const cardsEl = section.querySelector('.cards');
+  cardsEl.innerHTML = '';
+  a.cards.forEach((card, i) => cardsEl.appendChild(renderCard(state, card, i)));
+
+  // Recovery row: always present. A drive with no decodable codes forms no
+  // card, so the card list alone can silently miss drives.
+  const row = document.createElement('div');
+  row.className = 'hint';
+  row.appendChild(document.createTextNode('Missing a drive or an expected field? '));
+  const btn = document.createElement('button');
+  btn.className = 'primary';
+  btn.textContent = 'Run OCR assist on whole photo';
+  btn.onclick = () => runOcr(state, { id: 'whole', bounds: { left: 0, top: 0, width: a.width, height: a.height } }, row, btn);
+  row.appendChild(btn);
+  if (!a.deepRan) {
+    row.appendChild(document.createTextNode(' '));
+    const deepBtn = document.createElement('button');
+    deepBtn.textContent = 'Deep re-scan (slow)';
+    deepBtn.onclick = () => {
+      const meta = section.querySelector('.meta');
+      meta.innerHTML = '<span class="spin"></span> deep scanning (tiles at full resolution)…';
+      // Preserve OCR-confirmed serials across the re-render
+      const extras = [...state.cardSerials.values()].filter(s => s.source === 'ocr').map(s => s.value);
+      scanOne(state, section, true).then(() => {
+        for (const v of extras) {
+          if (![...state.cardSerials.values()].some(s => s.value === v)) {
+            acceptProposal(state, { id: 'whole', bounds: null }, section.querySelector('.cards'), v);
+          }
+        }
+      });
+    };
+    row.appendChild(deepBtn);
+  }
+  row.appendChild(document.createTextNode(' For an unreadable label, retake closer: one drive filling the frame, label flat, no glare.'));
+  cardsEl.appendChild(row);
+  refreshSummary();
+}
+
+function drawBoxes(state, section) {
+  const img = section.querySelector('img');
+  const canvas = section.querySelector('canvas');
+  const paint = () => {
+    const sx = img.clientWidth / state.analysis.width;
+    const sy = img.clientHeight / state.analysis.height;
+    canvas.width = img.clientWidth;
+    canvas.height = img.clientHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const r of state.analysis.results) {
+      if (!r.bounds) continue;
+      ctx.strokeStyle = r.kind === 'serial' ? '#1a7f37' : '#0969da';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(r.bounds.left * sx, r.bounds.top * sy, r.bounds.width * sx, r.bounds.height * sy);
+    }
+  };
+  if (img.complete) paint(); else img.onload = paint;
+}
+
+function renderCard(state, card, idx) {
+  const a = state.analysis;
+  const items = card.itemIds.map(id => a.results[id]);
+  const serialItem = card.serialId != null ? a.results[card.serialId] : null;
+  const div = document.createElement('div');
+  div.className = 'card ' + card.status;
+  const makes = [...new Set(items.map(r => r.make).filter(Boolean))];
+
+  const head = document.createElement('h4');
+  const title = card.model || (makes.length ? makes.join('/') : null);
+  head.textContent = card.preloadedOcr ? 'Region scan (OCR)' : `Drive ${idx + 1}${title ? ' — ' + title : ''}`;
+  div.appendChild(head);
+
+  if (serialItem) {
+    state.cardSerials.set(card.id, { value: serialItem.text, source: 'barcode' });
+    div.appendChild(serialRow(serialItem.text, 'barcode'));
+  } else if (card.preloadedOcr) {
+    renderProposals(state, card, div, card.preloadedOcr);
+  } else {
+    // Not a failure: labels differ — some carry the SN only as printed text.
+    const note = document.createElement('div');
+    note.className = 'meta';
+    note.textContent = 'No serial-typed code among these. All detected fields are listed below as decoded.';
+    div.appendChild(note);
+    const ocrBtn = document.createElement('button');
+    ocrBtn.textContent = 'Run OCR assist';
+    ocrBtn.onclick = () => runOcr(state, card, div, ocrBtn);
+    div.appendChild(ocrBtn);
+  }
+
+  const codes = document.createElement('div');
+  codes.className = 'codes';
+  for (const r of items) {
+    const row = document.createElement('div');
+    row.className = 'code';
+    row.innerHTML = `
+      ${r.thumb ? `<img src="${r.thumb}" title="source region">` : ''}
+      <span class="txt">${r.text}</span>
+      <span class="badge kind" ${r.via ? `title="${r.via}"` : ''}>${r.format}·${r.kind}${r.via ? '⧉' : ''}</span>`;
+    const btn = document.createElement('button');
+    btn.textContent = 'copy';
+    btn.onclick = () => navigator.clipboard.writeText(r.text);
+    row.appendChild(btn);
+    codes.appendChild(row);
+  }
+  div.appendChild(codes);
+  return div;
+}
+
+function serialRow(value, source) {
+  const row = document.createElement('div');
+  const span = document.createElement('span');
+  span.className = 'serial';
+  span.textContent = value;
+  const badge = document.createElement('span');
+  badge.className = 'badge ' + source;
+  badge.textContent = source === 'ocr' ? 'OCR — confirmed' : 'barcode';
+  const btn = document.createElement('button');
+  btn.textContent = 'copy';
+  btn.onclick = () => navigator.clipboard.writeText(value);
+  row.append(span, badge, btn);
+  return row;
+}
+
+// Render OCR proposals into container; accepting one sets the card's serial
+// (or creates a new card for whole-photo / region OCR results).
+function renderProposals(state, card, container, candidates) {
+  if (!candidates.length) {
+    const none = document.createElement('div');
+    none.className = 'meta';
+    none.textContent = 'OCR found no serial-shaped text here.';
+    container.appendChild(none);
+    return;
+  }
+  for (const c of candidates) {
+    const row = document.createElement('div');
+    row.className = 'proposal';
+    row.innerHTML = `<span>${c.value}</span><span class="badge ocr">OCR? ${c.votes ? `${c.votes}/${c.of} reads, ` : ''}conf ${c.confidence}</span>`;
+    const use = document.createElement('button');
+    use.textContent = 'Use this';
+    use.onclick = () => acceptProposal(state, card, container, c.value);
+    row.appendChild(use);
+    container.appendChild(row);
+  }
+  const note = document.createElement('div');
+  note.className = 'meta';
+  note.textContent = 'OCR misreads characters on these labels (8/R, 0/O) — verify against the photo before using.';
+  container.appendChild(note);
+}
+
+function acceptProposal(state, card, container, value) {
+  const cardsEl = container.closest('.photo').querySelector('.cards');
+  if (card.id === 'whole') {
+    // No drive card exists for this hit — create a synthetic confirmed card
+    const a = state.analysis;
+    const newCard = { id: 'ocr-' + value, itemIds: [], serialId: null, bounds: card.bounds, status: 'ok' };
+    a.cards.push(newCard);
+    state.cardSerials.set(newCard.id, { value, source: 'ocr' });
+    const div = document.createElement('div');
+    div.className = 'card ok';
+    const head = document.createElement('h4');
+    head.textContent = 'OCR-assisted serial';
+    div.appendChild(head);
+    div.appendChild(serialRow(value, 'ocr'));
+    cardsEl.insertBefore(div, cardsEl.lastElementChild);
+  } else {
+    state.cardSerials.set(card.id, { value, source: 'ocr' });
+    const cardEl = container.closest('.card');
+    cardEl.className = 'card ok';
+    cardEl.querySelector('strong')?.remove();
+    cardEl.insertBefore(serialRow(value, 'ocr'), cardEl.children[1]);
+  }
+  container.querySelectorAll('.proposal, .meta').forEach(p => p.remove());
+  refreshSummary();
+}
+
+async function runOcr(state, card, cardEl, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> OCR…';
+  try {
+    const fd = new FormData();
+    fd.append('image', state.file);
+    fd.append('crop_left', card.bounds.left);
+    fd.append('crop_top', card.bounds.top);
+    fd.append('crop_width', card.bounds.width);
+    fd.append('crop_height', card.bounds.height);
+    const res = await fetch('/ocr', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    btn.remove();
+    renderProposals(state, card, cardEl, data.candidates);
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Run OCR assist (failed — retry)';
+  }
+}
+
+function enableRegionSelect(state, section) {
+  const wrap = section.querySelector('.overviewWrap');
+  const canvas = section.querySelector('canvas');
+  const rect = section.querySelector('.selRect');
+  let start = null;
+  canvas.addEventListener('mousedown', e => {
+    const b = canvas.getBoundingClientRect();
+    start = { x: e.clientX - b.left, y: e.clientY - b.top, b };
+    rect.style.display = 'block';
+  });
+  canvas.addEventListener('mousemove', e => {
+    if (!start) return;
+    const x = Math.min(start.x, e.clientX - start.b.left);
+    const y = Math.min(start.y, e.clientY - start.b.top);
+    const w = Math.abs(e.clientX - start.b.left - start.x);
+    const h = Math.abs(e.clientY - start.b.top - start.y);
+    Object.assign(rect.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
+  });
+  canvas.addEventListener('mouseup', async e => {
+    if (!start) return;
+    const w = Math.abs(e.clientX - start.b.left - start.x);
+    const h = Math.abs(e.clientY - start.b.top - start.y);
+    const x = Math.min(start.x, e.clientX - start.b.left);
+    const y = Math.min(start.y, e.clientY - start.b.top);
+    start = null;
+    rect.style.display = 'none';
+    if (w < 12 || h < 12 || !state.analysis) return;
+    const sx = state.analysis.width / canvas.clientWidth;
+    const sy = state.analysis.height / canvas.clientHeight;
+    const meta = section.querySelector('.meta');
+    meta.innerHTML = '<span class="spin"></span> re-scanning region (barcodes + OCR)…';
+    try {
+      const fd = new FormData();
+      fd.append('image', state.file);
+      fd.append('crop_left', Math.round(x * sx));
+      fd.append('crop_top', Math.round(y * sy));
+      fd.append('crop_width', Math.round(w * sx));
+      fd.append('crop_height', Math.round(h * sy));
+      const res = await fetch('/scan-region', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      mergeRegionResults(state, data);
+      renderAnalysis(state, section);
+    } catch (err) {
+      meta.textContent = 'Region scan error: ' + err.message;
+    }
+  });
+}
+
+// Append region-scan hits as one extra card; OCR candidates become proposals.
+function mergeRegionResults(state, data) {
+  const a = state.analysis;
+  const base = a.results.length;
+  for (const r of data.results) {
+    if (a.results.some(x => x.text === r.text && x.format === r.format)) continue;
+    r.id = a.results.length;
+    a.results.push(r);
+  }
+  const newIds = a.results.slice(base).map(r => r.id);
+  const card = {
+    id: a.cards.length,
+    itemIds: newIds,
+    serialId: null,
+    bounds: data.region,
+    status: 'no-serial',
+  };
+  const serial = data.results.find(r => r.kind === 'serial');
+  if (serial) {
+    card.serialId = a.results.find(r => r.text === serial.text && r.format === serial.format)?.id ?? null;
+    card.status = card.serialId != null ? 'ok' : 'no-serial';
+  }
+  if (newIds.length || data.ocrCandidates.length) {
+    a.cards.push(card);
+    // Attach region OCR proposals as an unverified card the user can confirm
+    if (data.ocrCandidates.length) {
+      const ocrCard = {
+        id: a.cards.length,
+        itemIds: [],
+        serialId: null,
+        bounds: data.region,
+        status: 'no-serial',
+        preloadedOcr: data.ocrCandidates,
+      };
+      a.cards.push(ocrCard);
+    }
+  }
+}
+
+function refreshSummary() {
+  const groups = serialGroups();
+  const lines = [];
+  groupsEl.innerHTML = '';
+  for (const g of groups) {
+    const head = document.createElement('div');
+    head.className = 'groupHead';
+    head.textContent = `${g.model} (${g.entries.length})`;
+    groupsEl.appendChild(head);
+    for (const e of g.entries) {
+      lines.push(e.value);
+      const row = document.createElement('div');
+      row.className = 'groupRow';
+      const span = document.createElement('span');
+      span.className = 'txt';
+      span.textContent = e.value;
+      const meta = document.createElement('span');
+      meta.className = 'meta';
+      meta.textContent = `${e.photo} · ${e.card}${e.source === 'ocr' ? ' · OCR-confirmed' : ''}`;
+      const btn = document.createElement('button');
+      btn.textContent = 'copy';
+      btn.onclick = () => navigator.clipboard.writeText(e.value);
+      row.append(span, meta, btn);
+      groupsEl.appendChild(row);
+    }
+  }
+  summaryEl.style.display = lines.length ? 'block' : 'none';
+  serialsOut.value = lines.join('\n');
+}
+</script>
+</body>
+</html>

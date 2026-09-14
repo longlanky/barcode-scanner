@@ -1,0 +1,17 @@
+{
+  "name": "barcode-scanner",
+  "version": "2.0.0",
+  "description": "Drag and drop barcode/QR code scanner using ZBar",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@undecaf/zbar-wasm": "^0.10.1",
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.33.2",
+    "tesseract.js": "^7.0.0",
+    "zxing-wasm": "^3.1.3"
+  }
+}
